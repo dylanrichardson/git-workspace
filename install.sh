@@ -26,11 +26,9 @@ detect_install_path() {
     # Check common locations in order of preference
     if [ -w "/usr/local/bin" ]; then
         echo "/usr/local/bin/git-workspace"
-    elif [ -w "$HOME/.local/bin" ]; then
-        mkdir -p "$HOME/.local/bin"
+    elif mkdir -p "$HOME/.local/bin" 2>/dev/null; then
         echo "$HOME/.local/bin/git-workspace"
-    elif [ -w "$HOME/bin" ]; then
-        mkdir -p "$HOME/bin"
+    elif mkdir -p "$HOME/bin" 2>/dev/null; then
         echo "$HOME/bin/git-workspace"
     else
         error "No writable install location found. Try: sudo mkdir -p /usr/local/bin && sudo chown $USER /usr/local/bin"
