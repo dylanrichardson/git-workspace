@@ -73,19 +73,25 @@ main() {
 
     info "✓ git-workspace installed to $INSTALL_PATH"
 
-    # Detect shell and offer to add integration
-    SHELL_CONFIG=$(detect_shell_config)
+    # Check if shell integration is already loaded
+    if type git-workspace 2>/dev/null | grep -q "function"; then
+        echo ""
+        info "Shell integration already loaded"
+    else
+        # Detect shell config file for instructions
+        SHELL_CONFIG=$(detect_shell_config)
 
-    echo ""
-    info "Next step: Add shell integration to $SHELL_CONFIG"
-    echo ""
-    echo "Run this command:"
-    echo "  echo 'eval \"\$(git-workspace init bash)\"' >> $SHELL_CONFIG"
-    echo ""
-    echo "Then reload your shell:"
-    echo "  source $SHELL_CONFIG"
-    echo ""
-    info "After that, you can use: git-workspace enter"
+        echo ""
+        info "Next step: Add shell integration to $SHELL_CONFIG (or wherever you load shell functions)"
+        echo ""
+        echo "Run this command:"
+        echo "  echo 'eval \"\$(git-workspace init bash)\"' >> $SHELL_CONFIG"
+        echo ""
+        echo "Then reload your shell:"
+        echo "  source $SHELL_CONFIG"
+        echo ""
+        info "After that, you can use: git-workspace enter"
+    fi
 }
 
 main "$@"
