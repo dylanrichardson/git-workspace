@@ -151,14 +151,16 @@ is_locked() {
     # Check if process is still alive
     if kill -0 "$pid" 2>/dev/null; then
         # Check if this is a git-workspace shell process with no children
-        # (means the spawned bash died but the script is stuck)
+        # (means the spawned bash died but the script is stuck - happens in Warp)
         local cmd=$(ps -o command= -p "$pid" 2>/dev/null)
         if [[ "$cmd" == *"git-workspace shell"* ]]; then
             # Check if it has any children
             if ! pgrep -P "$pid" >/dev/null 2>&1; then
                 # git-workspace shell with no children = stuck/stale
+                # Kill the stuck process
+                kill "$pid" 2>/dev/null || true
                 rm -f "$lock_file"
-                return 1  # Not locked (cleaned up stale lock)
+                return 1  # Not locked (cleaned up stale lock and killed stuck process)
             fi
         fi
 
@@ -473,13 +475,23 @@ cmd_shell() {
     # Setup cleanup trap
     cleanup() {
         local cleanup_repo_root=$(get_repo_root)
-        cd "$cleanup_repo_root"
-        git worktree remove "$CLEANUP_WORKSPACE_PATH" --force 2>/dev/null || rm -rf "$CLEANUP_WORKSPACE_PATH"
-        git branch -D "$CLEANUP_BRANCH_NAME" >/dev/null 2>&1 || true
 
-        # Remove lock
-        local workspace_name=$(basename "$CLEANUP_WORKSPACE_PATH")
-        remove_lock "$cleanup_repo_root" "$workspace_name"
+        # Check if workspace is dirty before removing
+        if is_workspace_dirty "$CLEANUP_WORKSPACE_PATH"; then
+            warn "Workspace has uncommitted changes - leaving it for manual cleanup"
+            warn "Path: $CLEANUP_WORKSPACE_PATH"
+            # Remove lock but leave workspace
+            local workspace_name=$(basename "$CLEANUP_WORKSPACE_PATH")
+            remove_lock "$cleanup_repo_root" "$workspace_name"
+        else
+            cd "$cleanup_repo_root"
+            git worktree remove "$CLEANUP_WORKSPACE_PATH" 2>/dev/null || rm -rf "$CLEANUP_WORKSPACE_PATH"
+            git branch -D "$CLEANUP_BRANCH_NAME" >/dev/null 2>&1 || true
+
+            # Remove lock
+            local workspace_name=$(basename "$CLEANUP_WORKSPACE_PATH")
+            remove_lock "$cleanup_repo_root" "$workspace_name"
+        fi
     }
     trap cleanup EXIT INT TERM HUP
 
