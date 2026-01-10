@@ -706,6 +706,9 @@ main() {
         clean)
             cmd_clean "$@"
             ;;
+        enter|exit)
+            error "'$command' requires shell integration. Use 'git-workspace' (with hyphen) or run: eval \"\$(git-workspace init bash)\""
+            ;;
         --version|-v)
             echo "git-workspace v${VERSION}"
             exit 0
