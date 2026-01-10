@@ -63,8 +63,7 @@ main() {
     else
         # Need sudo for the move only
         info "Installing to $INSTALL_PATH (requires sudo)..."
-        sudo mkdir -p /usr/local/bin 2>/dev/null || true
-        sudo mv "$tmp_file" "$INSTALL_PATH" || error "Failed to install git-workspace"
+        sudo mv "$tmp_file" "$INSTALL_PATH" || error "Failed to install git-workspace (is /usr/local/bin present?)"
     fi
 
     # Verify installation
