@@ -21,30 +21,6 @@ warn() {
     echo -e "${YELLOW}$1${NC}"
 }
 
-# Detect install location
-detect_install_path() {
-    # Check common locations in order of preference
-    if [ -w "/usr/local/bin" ]; then
-        echo "/usr/local/bin/git-workspace"
-    elif mkdir -p "$HOME/.local/bin" 2>/dev/null; then
-        echo "$HOME/.local/bin/git-workspace"
-    elif mkdir -p "$HOME/bin" 2>/dev/null; then
-        echo "$HOME/bin/git-workspace"
-    else
-        error "No writable install location found. Try: sudo mkdir -p /usr/local/bin && sudo chown $USER /usr/local/bin"
-    fi
-}
-
-# Check if location is in PATH
-check_in_path() {
-    local dir=$(dirname "$1")
-    if [[ ":$PATH:" == *":$dir:"* ]]; then
-        return 0
-    else
-        return 1
-    fi
-}
-
 # Detect shell config file
 detect_shell_config() {
     if [ -n "${BASH_VERSION:-}" ]; then
@@ -69,31 +45,37 @@ detect_shell_config() {
 main() {
     info "Installing git-workspace..."
 
-    # Detect install location
-    INSTALL_PATH=$(detect_install_path)
-    info "Install location: $INSTALL_PATH"
+    INSTALL_PATH="/usr/local/bin/git-workspace"
+
+    # Check if /usr/local/bin exists and is writable
+    if [ ! -d "/usr/local/bin" ]; then
+        info "Creating /usr/local/bin..."
+        sudo mkdir -p /usr/local/bin || error "Failed to create /usr/local/bin"
+    fi
 
     # Download script
-    info "Downloading latest version..."
-    curl -fsSL "https://raw.githubusercontent.com/dylanrichardson/git-workspace/main/git-workspace" \
-        -o "$INSTALL_PATH" || error "Failed to download git-workspace"
+    info "Downloading latest version to $INSTALL_PATH..."
 
-    # Make executable
-    chmod +x "$INSTALL_PATH"
+    if [ -w "/usr/local/bin" ]; then
+        # Can write directly
+        curl -fsSL "https://raw.githubusercontent.com/dylanrichardson/git-workspace/main/git-workspace" \
+            -o "$INSTALL_PATH" || error "Failed to download git-workspace"
+        chmod +x "$INSTALL_PATH"
+    else
+        # Need sudo
+        local tmp_file=$(mktemp)
+        curl -fsSL "https://raw.githubusercontent.com/dylanrichardson/git-workspace/main/git-workspace" \
+            -o "$tmp_file" || error "Failed to download git-workspace"
+        sudo mv "$tmp_file" "$INSTALL_PATH" || error "Failed to install git-workspace"
+        sudo chmod +x "$INSTALL_PATH"
+    fi
 
     # Verify installation
     if ! "$INSTALL_PATH" --help >/dev/null 2>&1; then
         error "Installation failed - script not working"
     fi
 
-    info "✓ git-workspace installed successfully!"
-
-    # Check if in PATH
-    if ! check_in_path "$INSTALL_PATH"; then
-        warn "Warning: $(dirname "$INSTALL_PATH") is not in your PATH"
-        warn "Add this to your shell config:"
-        warn "  export PATH=\"$(dirname "$INSTALL_PATH"):\$PATH\""
-    fi
+    info "✓ git-workspace installed to $INSTALL_PATH"
 
     # Detect shell and offer to add integration
     SHELL_CONFIG=$(detect_shell_config)
