@@ -150,15 +150,19 @@ is_locked() {
 
     # Check if process is still alive
     if kill -0 "$pid" 2>/dev/null; then
-        # Process exists, but check if it's orphaned (parent died)
-        local ppid=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')
-        if [ -n "$ppid" ] && [ "$ppid" != "1" ] && kill -0 "$ppid" 2>/dev/null; then
-            return 0  # Locked by active process with living parent
-        else
-            # Orphaned process - treat as stale
-            rm -f "$lock_file"
-            return 1  # Not locked (cleaned up orphaned lock)
+        # Check if this is a git-workspace shell process with no children
+        # (means the spawned bash died but the script is stuck)
+        local cmd=$(ps -o command= -p "$pid" 2>/dev/null)
+        if [[ "$cmd" == *"git-workspace shell"* ]]; then
+            # Check if it has any children
+            if ! pgrep -P "$pid" >/dev/null 2>&1; then
+                # git-workspace shell with no children = stuck/stale
+                rm -f "$lock_file"
+                return 1  # Not locked (cleaned up stale lock)
+            fi
         fi
+
+        return 0  # Locked by active process
     else
         # Dead process - stale lock
         rm -f "$lock_file"
