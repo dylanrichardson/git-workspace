@@ -469,7 +469,7 @@ cmd_shell() {
         local workspace_name=$(basename "$CLEANUP_WORKSPACE_PATH")
         remove_lock "$cleanup_repo_root" "$workspace_name"
     }
-    trap cleanup EXIT INT TERM
+    trap cleanup EXIT INT TERM HUP
 
     # Spawn shell (NOT exec, so trap fires)
     cd "$workspace_path"
