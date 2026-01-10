@@ -47,27 +47,22 @@ main() {
 
     INSTALL_PATH="/usr/local/bin/git-workspace"
 
-    # Check if /usr/local/bin exists and is writable
-    if [ ! -d "/usr/local/bin" ]; then
-        info "Creating /usr/local/bin..."
-        sudo mkdir -p /usr/local/bin || error "Failed to create /usr/local/bin"
-    fi
+    # Download to temp file first
+    info "Downloading latest version..."
+    local tmp_file=$(mktemp)
+    curl -fsSL "https://raw.githubusercontent.com/dylanrichardson/git-workspace/main/git-workspace" \
+        -o "$tmp_file" || error "Failed to download git-workspace"
+    chmod +x "$tmp_file"
 
-    # Download script
-    info "Downloading latest version to $INSTALL_PATH..."
-
+    # Install to /usr/local/bin
     if [ -w "/usr/local/bin" ]; then
         # Can write directly
-        curl -fsSL "https://raw.githubusercontent.com/dylanrichardson/git-workspace/main/git-workspace" \
-            -o "$INSTALL_PATH" || error "Failed to download git-workspace"
-        chmod +x "$INSTALL_PATH"
+        mv "$tmp_file" "$INSTALL_PATH" || error "Failed to install git-workspace"
     else
-        # Need sudo
-        local tmp_file=$(mktemp)
-        curl -fsSL "https://raw.githubusercontent.com/dylanrichardson/git-workspace/main/git-workspace" \
-            -o "$tmp_file" || error "Failed to download git-workspace"
-        sudo mv "$tmp_file" "$INSTALL_PATH" || error "Failed to install git-workspace"
-        sudo chmod +x "$INSTALL_PATH"
+        # Need sudo - do everything in one sudo call
+        info "Installing to $INSTALL_PATH (requires sudo)..."
+        sudo sh -c "mkdir -p /usr/local/bin && mv '$tmp_file' '$INSTALL_PATH' && chmod +x '$INSTALL_PATH'" \
+            || error "Failed to install git-workspace"
     fi
 
     # Verify installation
