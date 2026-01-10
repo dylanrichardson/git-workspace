@@ -150,9 +150,17 @@ is_locked() {
 
     # Check if process is still alive
     if kill -0 "$pid" 2>/dev/null; then
-        return 0  # Locked
+        # Process exists, but check if it's orphaned (parent died)
+        local ppid=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')
+        if [ -n "$ppid" ] && [ "$ppid" != "1" ] && kill -0 "$ppid" 2>/dev/null; then
+            return 0  # Locked by active process with living parent
+        else
+            # Orphaned process - treat as stale
+            rm -f "$lock_file"
+            return 1  # Not locked (cleaned up orphaned lock)
+        fi
     else
-        # Stale lock
+        # Dead process - stale lock
         rm -f "$lock_file"
         return 1  # Not locked (cleaned up stale lock)
     fi
