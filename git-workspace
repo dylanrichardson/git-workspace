@@ -51,13 +51,6 @@ Commands:
                             - Shows warning if in deleted directory
                             - For use in scripts or with: cd $(git-workspace release)
 
-  enter [--name NAME]       Alias for acquire (for use with shell integration)
-                            - With shell integration: auto-cd into workspace
-
-  exit [--name NAME]        Delete worktree, suppress ghost dir warning
-  [--force]                 - Same as release but quieter (for shell integration)
-                            - With shell integration: auto-cd back to base repo
-
   shell [--name NAME]       Spawn shell in worktree, auto-cleanup on exit
                             - Workspace deleted automatically when shell exits
 
@@ -70,33 +63,25 @@ Commands:
   -h, --help               Show this help
 
 Setup (one-time):
-  # Add to ~/.bashrc or ~/.zshrc:
+  # Add to ~/.bashrc or ~/.zshrc for auto-cd functionality:
   eval "$(git-workspace init bash)"
 
-  # Reload your shell, then use:
-  git-workspace enter        # Create workspace and auto-cd into it
-  git-workspace exit         # Delete workspace and auto-cd back to base
-  git-workspace list         # Show all workspaces
-  git-workspace clean        # Remove abandoned workspaces
-
 Examples:
-  # Main workflow (with shell integration - RECOMMENDED)
-  git-workspace enter           # Enter workspace (auto-cd)
+  # Acquire workspace and cd into it
+  cd $(git-workspace acquire)
   # ... do work ...
-  git-workspace exit            # Exit workspace (auto-cd back)
+  cd $(git-workspace release)
 
   # Named workspaces
-  git-workspace enter --name feat
-  git-workspace exit --name feat
+  cd $(git-workspace acquire --name feat)
+  cd $(git-workspace release --name feat)
 
-  # Without shell integration (manual cd)
-  cd $(git-workspace enter)
-  cd $(git-workspace exit)
+  # Spawn a shell that auto-cleans up on exit
+  git-workspace shell
 
-  # Other commands
+  # List and clean up workspaces
   git-workspace list
   git-workspace clean
-  git-workspace shell           # Alt: spawn shell, auto-cleanup on exit
 EOF
 }
 
@@ -423,16 +408,6 @@ cmd_release() {
     echo "$repo_root"
 }
 
-# Command: enter workspace (alias for acquire)
-cmd_enter() {
-    cmd_acquire "$@"
-}
-
-# Command: exit workspace (release with --quiet flag)
-cmd_exit() {
-    cmd_release --quiet "$@"
-}
-
 # Command: shell workspace
 cmd_shell() {
     local custom_name=""
@@ -516,7 +491,7 @@ git-workspace() {
         enter)
             shift
             local result
-            result=$(command git-workspace enter "$@" 2>&1)
+            result=$(command git-workspace acquire "$@" 2>&1)
             local exit_code=$?
 
             if [ $exit_code -eq 0 ]; then
@@ -531,7 +506,7 @@ git-workspace() {
         exit)
             shift
             local result
-            result=$(command git-workspace exit "$@" 2>&1)
+            result=$(command git-workspace release --quiet "$@" 2>&1)
             local exit_code=$?
 
             if [ $exit_code -eq 0 ]; then
@@ -542,6 +517,19 @@ git-workspace() {
                 echo "$result" >&2
                 return $exit_code
             fi
+            ;;
+        -h|--help)
+            # Show augmented help with enter/exit commands
+            cat << 'HELP_EOF'
+git-workspace (with shell integration)
+
+Additional commands provided by shell integration:
+  enter [--name NAME]       Acquire workspace and auto-cd into it
+  exit [--name NAME]        Release workspace and auto-cd back to base repo
+  [--force]
+
+HELP_EOF
+            command git-workspace --help
             ;;
         *)
             # Pass through all other commands to the script
@@ -707,12 +695,6 @@ main() {
             ;;
         release)
             cmd_release "$@"
-            ;;
-        enter)
-            cmd_enter "$@"
-            ;;
-        exit)
-            cmd_exit "$@"
             ;;
         shell)
             cmd_shell "$@"
