@@ -480,9 +480,7 @@ cmd_shell() {
 
     # Spawn shell (NOT exec, so trap fires)
     cd "$workspace_path"
-
-    # Use login shell to ensure rc files are sourced
-    ${SHELL:-/bin/bash} -l
+    ${SHELL:-/bin/bash}
 
     # When shell exits, trap will fire and cleanup runs
 }
@@ -499,15 +497,11 @@ git-workspace() {
     case "$1" in
         enter)
             shift
-            local workspace_path
-            workspace_path=$(command git-workspace acquire --shell-pid $$ "$@") || return 1
-            cd "$workspace_path" || return 1
+            cd "$(command git-workspace acquire --shell-pid $$ "$@")" || return 1
             ;;
         exit)
             shift
-            local base_path
-            base_path=$(command git-workspace release --quiet "$@") || return 1
-            cd "$base_path" || return 1
+            cd "$(command git-workspace release --quiet "$@")" || return 1
             ;;
         --help|-h)
             cat << 'HELP_EOF'
