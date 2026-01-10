@@ -120,10 +120,11 @@ generate_suffix() {
 create_lock() {
     local repo_root="$1"
     local workspace_name="$2"
+    local lock_pid="$3"
     local lock_dir="${repo_root}/${LOCK_DIR}"
 
     mkdir -p "$lock_dir"
-    echo $$ > "${lock_dir}/${workspace_name}"
+    echo "$lock_pid" > "${lock_dir}/${workspace_name}"
 }
 
 # Remove lockfile for workspace
@@ -241,12 +242,23 @@ is_managed_workspace() {
 # Command: acquire workspace
 cmd_acquire() {
     local custom_name=""
+    local shell_pid="$$"
 
     # Parse options
     while [ $# -gt 0 ]; do
         case "$1" in
             --name)
+                if [ $# -lt 2 ]; then
+                    error "--name requires an argument"
+                fi
                 custom_name="$2"
+                shift 2
+                ;;
+            --shell-pid)
+                if [ $# -lt 2 ]; then
+                    error "--shell-pid requires an argument"
+                fi
+                shell_pid="$2"
                 shift 2
                 ;;
             *)
@@ -311,7 +323,7 @@ cmd_acquire() {
     git worktree add "$workspace_path" "$branch_name" >/dev/null 2>&1
 
     # Create lock
-    create_lock "$repo_root" "$workspace_name"
+    create_lock "$repo_root" "$workspace_name" "$shell_pid"
 
     # Print path to stdout (for cd)
     echo "$workspace_path"
@@ -488,7 +500,7 @@ git-workspace() {
         enter)
             shift
             local workspace_path
-            workspace_path=$(command git-workspace acquire "$@") || return 1
+            workspace_path=$(command git-workspace acquire --shell-pid $$ "$@") || return 1
             cd "$workspace_path" || return 1
             ;;
         exit)
@@ -657,6 +669,13 @@ cmd_clean() {
                         skipped_dirty=$((skipped_dirty + 1))
                     fi
                 else
+                    # Check if user is in this workspace
+                    local current_dir=$(pwd)
+                    if [ "$current_dir" = "$workspace_path" ] || [[ "$current_dir" == "$workspace_path"/* ]]; then
+                        warn "You are in $workspace_path which will be deleted!"
+                        warn "You'll be in a deleted directory after this."
+                    fi
+
                     info "Removing clean worktree: $workspace_path"
                     cd "$repo_root"
                     git worktree remove "$workspace_path" 2>/dev/null || rm -rf "$workspace_path"
