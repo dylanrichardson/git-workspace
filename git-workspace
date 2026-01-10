@@ -475,7 +475,7 @@ cmd_shell() {
     cd "$workspace_path"
 
     # Export workspace name for prompt customization
-    export GIT_WORKSPACE_NAME="$workspace_name"
+    export GIT_WORKSPACE_NAME="$(basename "$workspace_path")"
 
     ${SHELL:-/bin/bash}
 
