@@ -52,6 +52,8 @@ main() {
     local tmp_file=$(mktemp)
     curl -fsSL "https://raw.githubusercontent.com/dylanrichardson/git-workspace/main/git-workspace" \
         -o "$tmp_file" || error "Failed to download git-workspace"
+
+    # Make executable before moving (no sudo needed here)
     chmod +x "$tmp_file"
 
     # Install to /usr/local/bin
@@ -59,10 +61,10 @@ main() {
         # Can write directly
         mv "$tmp_file" "$INSTALL_PATH" || error "Failed to install git-workspace"
     else
-        # Need sudo - do everything in one sudo call
+        # Need sudo for the move only
         info "Installing to $INSTALL_PATH (requires sudo)..."
-        sudo sh -c "mkdir -p /usr/local/bin && mv '$tmp_file' '$INSTALL_PATH' && chmod +x '$INSTALL_PATH'" \
-            || error "Failed to install git-workspace"
+        sudo mkdir -p /usr/local/bin 2>/dev/null || true
+        sudo mv "$tmp_file" "$INSTALL_PATH" || error "Failed to install git-workspace"
     fi
 
     # Verify installation
